@@ -43,4 +43,11 @@ Mở file dashboard.html bằng Chrome/Edge
 
 Gửi tin nhắn, bấm nút điều khiển, xuất CSV
 ```
+### Quét mã để trải nhiệm
+
+<img width="706" height="693" alt="image" src="https://github.com/user-attachments/assets/1d23984e-56fa-4f22-aff7-269d9588a57a" />
+
+### Ảnh hệ thống 
+<img width="1544" height="1701" alt="image" src="https://github.com/user-attachments/assets/449ed5e4-dcd6-4dd5-9c38-5f89d803660f" />
+
 ### 👤 Tác giả : Ximoncute - Hiếu Ka Ka
