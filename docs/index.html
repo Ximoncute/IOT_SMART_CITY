@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>SmartCity Monitoring System</title>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .connection-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .status-connected {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .status-disconnected {
+            background: #f56565;
+            color: white;
+        }
+        
+        .message-bar {
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .message-bar input {
+            width: calc(100% - 100px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .message-bar button {
+            width: 90px;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .message-bar button:hover {
+            background: #5a67d8;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid #667eea;
+            padding-left: 10px;
+        }
+        
+        .gas-status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .gas-safe {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .gas-danger {
+            background: #f56565;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .gas-status h2 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .sound-value {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .sound-normal {
+            color: #48bb78;
+        }
+        
+        .sound-loud {
+            color: #f56565;
+        }
+        
+        .device-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f7f7f7;
+            border-radius: 8px;
+        }
+        
+        .device-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .device-state {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .state-on {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .state-off {
+            background: #cbd5e0;
+            color: #4a5568;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-on {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-on:hover {
+            background: #38a169;
+        }
+        
+        .btn-off {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-off:hover {
+            background: #e53e3e;
+        }
+        
+        .mode-toggle {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .mode-auto {
+            background: #48bb78;
+        }
+        
+        .mode-manual {
+            background: #ed8936;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+        }
+        
+        canvas {
+            max-height: 300px;
+            width: 100%;
+        }
+        
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .log-table th, .log-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .log-table th {
+            background: #f7f7f7;
+            font-weight: bold;
+        }
+        
+        .export-btn {
+            background: #48bb78;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .export-btn:hover {
+            background: #38a169;
+        }
+        
+        .reset-btn {
+            background: #f56565;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+        
+        .reset-btn:hover {
+            background: #e53e3e;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sound-value {
+                font-size: 36px;
+            }
+            
+            .gas-status h2 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏙️ SmartCity Monitoring System</h1>
+            <div id="connectionStatus" class="connection-status status-disconnected">🔴 DISCONNECTED</div>
+            <div class="message-bar">
+                <input type="text" id="messageInput" placeholder="⏳ Đang chờ kết nối MQTT..." disabled>
+                <button id="sendBtn" onclick="sendOLEDMessage()" disabled>Gửi</button>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>💨 Cảm biến khí gas</h3>
+                <div id="gasStatus" class="gas-status gas-safe">
+                    <h2>⏳ ĐANG CHỜ</h2>
+                    <p>Chờ kết nối MQTT...</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="gasChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🔊 Cảm biến âm thanh</h3>
+                <div id="soundDisplay">
+                    <div id="soundValue" class="sound-value sound-normal">0</div>
+                    <div id="soundStatus">Trạng thái: ⏳ Chờ kết nối...</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="soundChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🎮 Điều khiển thiết bị</h3>
+                <div class="device-status">
+                    <span class="device-name">🔊 CÒI BÁO</span>
+                    <span id="buzzerState" class="device-state state-off">ĐANG TẮT</span>
+                </div>
+                <div class="device-status">
+                    <span class="device-name">💡 ĐÈN LED</span>
+                    <span id="ledState" class="device-state state-off">ĐANG TẮT</span>
+                </div>
+                
+                <button id="modeToggle" class="mode-toggle mode-auto" onclick="toggleMode()" disabled>🔄 Chế độ: TỰ ĐỘNG</button>
+                
+                <div class="control-group">
+                    <label>🔊 ĐIỀU KHIỂN CÒI</label>
+                    <div class="button-group">
+                        <button class="btn btn-on" onclick="controlDevice('buzzer', 'ON')" disabled>BẬT</button>
+                        <button class="btn btn-off" onclick="controlDevice('buzzer', 'OFF')" disabled>TẮT</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>💡 ĐIỀU KHIỂN LED</label>
+                    <div class="button-group">
+                        <button class="btn btn-on" onclick="controlDevice('led', 'ON')" disabled>BẬT</button>
+                        <button class="btn btn-off" onclick="controlDevice('led', 'OFF')" disabled>TẮT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>📋 Log dữ liệu</h3>
+            <button class="export-btn" onclick="exportCSV()">📥 Xuất CSV</button>
+            <button class="reset-btn" onclick="resetAllData()">🔄 Reset dữ liệu</button>
+            <div style="overflow-x: auto;">
+                <table class="log-table" id="logTable">
+                    <thead>
+                        <tr><th>Thời gian</th><th>Khí gas</th><th>Âm thanh</th><th>Chế độ</th><th>Còi</th><th>LED</th></tr>
+                    </thead>
+                    <tbody id="logBody">
+                        <tr><td colspan="6" style="text-align:center;">⏳ Chờ kết nối MQTT...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const broker = 'ws://broker.emqx.io:8083/mqtt';
+        const options = {
+            clientId: 'web_' + Math.random().toString(16).substr(2, 8),
+            clean: true,
+            reconnectPeriod: 1000,
+            connectTimeout: 30000,
+        };
+        
+        const topics = {
+            gas: 'smartcity/sensor/gas',
+            sound: 'smartcity/sensor/sound',
+            buzzer: 'smartcity/control/buzzer',
+            led: 'smartcity/control/led',
+            mode: 'smartcity/control/mode',
+            oled: 'smartcity/oled/message',
+            statusBuzzer: 'smartcity/status/buzzer',
+            statusLed: 'smartcity/status/led'
+        };
+        
+        let client = null;
+        let soundChart = null;
+        let gasChart = null;
+        let soundData = [];
+        let gasData = [];
+        let logData = [];
+        let currentMode = 'auto';
+        let isConnected = false;
+        let currentGasValue = 'SAFE';
+        let lastLogTime = 0;
+        
+        function initCharts() {
+            const soundCtx = document.getElementById('soundChart').getContext('2d');
+            soundChart = new Chart(soundCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Cường độ âm thanh', data: [], borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.1)', tension: 0.4, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, max: 1024, title: { display: true, text: 'Giá trị (0-1024)' } }, x: { title: { display: true, text: 'Thời gian' } } }, plugins: { legend: { display: false } } }
+            });
+            
+            const gasCtx = document.getElementById('gasChart').getContext('2d');
+            gasChart = new Chart(gasCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Trạng thái khí gas', data: [], borderColor: '#f56565', backgroundColor: 'rgba(245, 101, 101, 0.1)', tension: 0.4, fill: true, stepped: true }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, max: 1, title: { display: true, text: '0=An toàn, 1=Nguy hiểm' }, ticks: { stepSize: 1, callback: function(value) { return value === 0 ? 'An toàn' : 'Nguy hiểm'; } } }, x: { title: { display: true, text: 'Thời gian' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+        
+        function updateSoundChart(value) {
+            soundData.push(value);
+            if (soundData.length > 20) soundData.shift();
+            if (soundChart) {
+                soundChart.data.labels = soundData.map((_, i) => `-${soundData.length - i}s`);
+                soundChart.data.datasets[0].data = soundData;
+                soundChart.update();
+            }
+            const soundValueDiv = document.getElementById('soundValue');
+            const soundStatusDiv = document.getElementById('soundStatus');
+            soundValueDiv.textContent = value;
+            if (value > 600) {
+                soundValueDiv.className = 'sound-value sound-loud';
+                soundStatusDiv.innerHTML = 'Trạng thái: 🔊 Âm thanh lớn!';
+            } else {
+                soundValueDiv.className = 'sound-value sound-normal';
+                soundStatusDiv.innerHTML = 'Trạng thái: 🔇 Bình thường';
+            }
+        }
+        
+        function updateGasChart(status) {
+            const gasValue = status === 'DANGER' ? 1 : 0;
+            gasData.push(gasValue);
+            if (gasData.length > 20) gasData.shift();
+            if (gasChart) {
+                gasChart.data.labels = gasData.map((_, i) => `-${gasData.length - i}s`);
+                gasChart.data.datasets[0].data = gasData;
+                gasChart.update();
+            }
+            const gasDiv = document.getElementById('gasStatus');
+            if (status === 'DANGER') {
+                gasDiv.className = 'gas-status gas-danger';
+                gasDiv.innerHTML = '<h2>⚠️ NGUY HIỂM</h2><p>Phát hiện khí gas! Hãy sơ tán ngay!</p>';
+            } else {
+                gasDiv.className = 'gas-status gas-safe';
+                gasDiv.innerHTML = '<h2>✅ AN TOÀN</h2><p>Không phát hiện khí gas</p>';
+            }
+        }
+        
+        function updateDeviceStatus(buzzerState, ledState) {
+            const buzzerStateSpan = document.getElementById('buzzerState');
+            const ledStateSpan = document.getElementById('ledState');
+            buzzerStateSpan.textContent = buzzerState === 'ON' ? 'ĐANG BẬT' : 'ĐANG TẮT';
+            buzzerStateSpan.className = buzzerState === 'ON' ? 'device-state state-on' : 'device-state state-off';
+            ledStateSpan.textContent = ledState === 'ON' ? 'ĐANG BẬT' : 'ĐANG TẮT';
+            ledStateSpan.className = ledState === 'ON' ? 'device-state state-on' : 'device-state state-off';
+        }
+        
+        function addLog(gasStatus, soundValue, mode, buzzerState, ledState) {
+            const now = new Date();
+            const timeStr = now.toLocaleString('vi-VN');
+            logData.unshift({ time: timeStr, gas: gasStatus === 'DANGER' ? 'Nguy hiểm' : 'An toàn', sound: soundValue, mode: mode === 'auto' ? 'Tự động' : 'Thủ công', buzzer: buzzerState === 'ON' ? 'Bật' : 'Tắt', led: ledState === 'ON' ? 'Bật' : 'Tắt' });
+            if (logData.length > 50) logData.pop();
+            updateLogTable();
+        }
+        
+        function updateLogTable() {
+            const tbody = document.getElementById('logBody');
+            tbody.innerHTML = '';
+            if (logData.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">📭 Chưa có dữ liệu</td></tr>'; return; }
+            logData.forEach(entry => { const row = tbody.insertRow(); row.insertCell(0).textContent = entry.time; row.insertCell(1).textContent = entry.gas; row.insertCell(2).textContent = entry.sound; row.insertCell(3).textContent = entry.mode; row.insertCell(4).textContent = entry.buzzer; row.insertCell(5).textContent = entry.led; });
+        }
+        
+        function resetAllData() { if (confirm('Bạn có chắc muốn reset tất cả dữ liệu?')) { logData = []; soundData = []; gasData = []; updateLogTable(); if (soundChart) { soundChart.data.labels = []; soundChart.data.datasets[0].data = []; soundChart.update(); } if (gasChart) { gasChart.data.labels = []; gasChart.data.datasets[0].data = []; gasChart.update(); } alert('Đã reset dữ liệu!'); } }
+        
+        function exportCSV() { if (logData.length === 0) { alert('Không có dữ liệu để xuất!'); return; } let csv = 'Thời gian,Khí gas,Âm thanh,Chế độ,Còi,LED\n'; logData.forEach(entry => { csv += `"${entry.time}","${entry.gas}","${entry.sound}","${entry.mode}","${entry.buzzer}","${entry.led}"\n`; }); const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `smartcity_log_${new Date().toISOString().slice(0,19)}.csv`; a.click(); URL.revokeObjectURL(url); }
+        
+        function setControlsEnabled(enabled) {
+            document.getElementById('modeToggle').disabled = !enabled;
+            document.getElementById('sendBtn').disabled = !enabled;
+            document.getElementById('messageInput').disabled = !enabled;
+            document.querySelectorAll('.btn-on, .btn-off').forEach(btn => btn.disabled = !enabled);
+            if (!enabled) { document.getElementById('messageInput').placeholder = '⏳ Đang chờ kết nối MQTT...'; document.getElementById('gasStatus').innerHTML = '<h2>⏳ ĐANG CHỜ</h2><p>Chờ kết nối MQTT...</p>'; document.getElementById('soundValue').textContent = '0'; document.getElementById('soundStatus').innerHTML = 'Trạng thái: ⏳ Chờ kết nối...'; updateDeviceStatus('OFF', 'OFF'); } else { document.getElementById('messageInput').placeholder = 'Nhập tin nhắn hiển thị trên OLED... (Nhập "0" để về mặc định)'; } }
+        
+        function controlDevice(device, state) { if (!isConnected) { alert('MQTT chưa kết nối!'); return; } if (currentMode === 'auto') { alert('Đang ở chế độ TỰ ĐỘNG! Hãy chuyển sang chế độ THỦ CÔNG để điều khiển.'); return; } let topic = device === 'buzzer' ? topics.buzzer : topics.led; if (client && client.connected) { client.publish(topic, state); console.log(`Published to ${topic}: ${state}`); } else { alert('MQTT chưa kết nối!'); } }
+        
+        function toggleMode() { if (!isConnected) { alert('MQTT chưa kết nối!'); return; } currentMode = currentMode === 'auto' ? 'manual' : 'auto'; const modeBtn = document.getElementById('modeToggle'); const modeText = currentMode === 'auto' ? 'TỰ ĐỘNG' : 'THỦ CÔNG'; modeBtn.textContent = `🔄 Chế độ: ${modeText}`; modeBtn.className = currentMode === 'auto' ? 'mode-toggle mode-auto' : 'mode-toggle mode-manual'; if (client && client.connected) { client.publish(topics.mode, currentMode); } }
+        
+        function sendOLEDMessage() { if (!isConnected) { alert('MQTT chưa kết nối!'); return; } const input = document.getElementById('messageInput'); const message = input.value.trim(); if (message === '') return; if (client && client.connected) { client.publish(topics.oled, message); alert(`✅ Đã gửi: "${message}"`); input.value = ''; } else { alert('MQTT chưa kết nối!'); } }
+        
+        function resetUIOnDisconnect() { isConnected = false; const statusDiv = document.getElementById('connectionStatus'); statusDiv.textContent = '🔴 DISCONNECTED'; statusDiv.className = 'connection-status status-disconnected'; setControlsEnabled(false); }
+        
+        function connectMQTT() {
+            client = mqtt.connect(broker, options);
+            client.on('connect', () => { console.log('Connected to MQTT broker'); isConnected = true; const statusDiv = document.getElementById('connectionStatus'); statusDiv.textContent = '🟢 CONNECTED'; statusDiv.className = 'connection-status status-connected'; setControlsEnabled(true); client.subscribe([topics.gas, topics.sound, topics.statusBuzzer, topics.statusLed]); });
+            client.on('message', (topic, message) => { const value = message.toString(); console.log(`Received: ${topic} = ${value}`);
+                if (topic === topics.gas) { currentGasValue = value; updateGasChart(value); }
+                else if (topic === topics.sound) { const soundVal = parseInt(value); updateSoundChart(soundVal); if (Date.now() - lastLogTime >= 2000) { lastLogTime = Date.now(); const buzzerState = document.getElementById('buzzerState').textContent === 'ĐANG BẬT' ? 'ON' : 'OFF'; const ledState = document.getElementById('ledState').textContent === 'ĐANG BẬT' ? 'ON' : 'OFF'; addLog(currentGasValue, soundVal, currentMode, buzzerState, ledState); } }
+                else if (topic === topics.statusBuzzer) { const buzzerState = document.getElementById('buzzerState').textContent === 'ĐANG BẬT' ? 'ON' : 'OFF'; updateDeviceStatus(value, document.getElementById('ledState').textContent === 'ĐANG BẬT' ? 'ON' : 'OFF'); }
+                else if (topic === topics.statusLed) { updateDeviceStatus(document.getElementById('buzzerState').textContent === 'ĐANG BẬT' ? 'ON' : 'OFF', value); }
+            });
+            client.on('error', (err) => { console.error('MQTT error:', err); resetUIOnDisconnect(); });
+            client.on('close', () => { console.log('MQTT disconnected'); resetUIOnDisconnect(); });
+        }
+        
+        window.onload = () => { initCharts(); connectMQTT(); };
+    </script>
+</body>
+</html>
